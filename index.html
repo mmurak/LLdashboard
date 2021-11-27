@@ -14,7 +14,7 @@ Low Pass Filter:
 <label>Cutoff frequency: <label id="FilterCOfLabel"></label></label><label>Hz</label><input type="range" id="FilterCOf" min="100" max="5000" value="200" oninput="cutoffFreqChange(this.value);"></label>
 <label>Q: <input type="text" id="FilterQ" value="50" size="5"></label>
 <br/>
-<label>FFT-range: <select id="FFTsize"><option value="512">〜15,000Hz+</option><option value="1024">〜8,000Hz</option><option value="2048">〜4,000Hz</option><option value="4096" selected>〜2,000Hz</option><option value="8192">〜1,000Hz</option><option value="16384">〜500Hz</option></select></label>
+<label>FFT-range: <select id="FFTsize"><option value="512">〜15,000Hz+</option><option value="1024">〜8,000Hz</option><option value="2048">〜4,000Hz</option><option value="4096">〜2,000Hz</option><option value="8192">〜1,000Hz</option><option value="16384" selected>〜500Hz</option></select></label>
 <label>Minimum level: <label id="FFTminDecLabel"></label><label>dB</label><input type="range" id="FFTminDec" min="-150" max="-1" value="-90" oninput="fftMinDecChange(this.value);"></label>
 <label>Dynamic Range: <label id="FFTDynRangeLabel"></label></label><label>dB</label><input type="range" id="FFTDynRange" min="1" max="150" value="60" oninput="fftDynRangeChange(this.value);"></label>
 <label>Smoothing Time Const.: <input type="textfield" id="FFTsmooth" value="0.8" size="5"></label>
