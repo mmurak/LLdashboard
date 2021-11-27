@@ -1,0 +1,384 @@
+<input type="file" id="AudioFile" onclick="this.value=null;" accept=".mp3,.mp4"/></input>
+<br/>
+<label>Splitter threshold: <input type="text" id="Threshold" value="0.011" size="6"></label>
+<label>Min blank (sec.): <input type="text" id="MinBlank" value="0.2" size="5"></label>
+<label>Min sound (sec.): <input type="text" id="MinSound" value="0.2" size="5"></label>
+<input type="button" id="SplitButton" value="Split">
+<label id="SplittedValue"></label>
+<select id="Selector" name="selector"></select>
+<input type="button" id="SampleSoundPlayButton" value="Play Audio Snippet" disabled="true">
+<input type="button" id="NextSampleSoundPlayButton" value="Play Next Clip" disabled="true">
+<br/>
+Low Pass Filter: 
+<label><select id="FilterUsage"><option value="0">none</option><option value="1" selected>Visualiser only</option><option value="2">both</option></select></label>
+<label>Cutoff frequency: <label id="FilterCOfLabel"></label></label><label>Hz</label><input type="range" id="FilterCOf" min="100" max="5000" value="200" oninput="cutoffFreqChange(this.value);"></label>
+<label>Q: <input type="text" id="FilterQ" value="50" size="5"></label>
+<br/>
+<label>FFT-range: <select id="FFTsize"><option value="512">〜15,000Hz+</option><option value="1024">〜8,000Hz</option><option value="2048">〜4,000Hz</option><option value="4096" selected>〜2,000Hz</option><option value="8192">〜1,000Hz</option><option value="16384">〜500Hz</option></select></label>
+<label>Minimum level: <label id="FFTminDecLabel"></label><label>dB</label><input type="range" id="FFTminDec" min="-150" max="-1" value="-90" oninput="fftMinDecChange(this.value);"></label>
+<label>Dynamic Range: <label id="FFTDynRangeLabel"></label></label><label>dB</label><input type="range" id="FFTDynRange" min="1" max="150" value="60" oninput="fftDynRangeChange(this.value);"></label>
+<label>Smoothing Time Const.: <input type="textfield" id="FFTsmooth" value="0.8" size="5"></label>
+<br/>
+<label>Pixels/Process<select id="PixelSpeed"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></label>
+<br/>
+<canvas id="Spectrogram" width="800" height="200"></canvas>
+<canvas id="Stressgram" width="800" height="100"></canvas>
+<hr>
+<input type="button" id="RecordButton" value="Press and Hold to Record" onMousedown="recStart();" onMouseup="recStop();">
+<input type="button" id="UserSoundPlayButton" value="Play Recorded Sound" onClick="playIt();" disabled="true">
+<br/>
+<label>Minimum dB: <label id="FFT2minDecLabel"></label><input type="range" id="FFT2minDec" min="-150" max="-1" value="-90" oninput="fft2MinDecChange(this.value);"></label>
+<label>Dynamic Range (dB): <label id="FFT2DynRangeLabel"></label><input type="range" id="FFT2DynRange" min="1" max="150" value="60" oninput="fft2DynRangeChange(this.value);"></label>
+<label>Smoothing Time Const.: <input type="textfield" id="FFT2smooth" value="0.8" size="5"></label>
+<br/>
+<canvas id="Spectrogram2" width="800" height="200"></canvas>
+<canvas id="Stressgram2" width="800" height="100"></canvas>
+
+<script src="./scripts/AudioSplitter.js"></script>
+<script src="./scripts/Smoother.js"></script>
+<script src="./scripts/Visualiser.js"></script>
+
+<script>
+/*
+ * Globals for widgets
+ */
+const AudioFile = document.getElementById("AudioFile");
+const Threshold = document.getElementById("Threshold");
+const MinBlank = document.getElementById("MinBlank");
+const MinSound = document.getElementById("MinSound");
+const SplitButton = document.getElementById("SplitButton");
+const SplittedValue = document.getElementById("SplittedValue");
+const Selector = document.getElementById("Selector");
+const FilterUsage = document.getElementById("FilterUsage");
+const FilterCOf = document.getElementById("FilterCOf");
+const FilterCOfLabel = document.getElementById("FilterCOfLabel");
+const FilterQ = document.getElementById("FilterQ");
+const FFTsize = document.getElementById("FFTsize");
+const FFTminDec = document.getElementById("FFTminDec");
+const FFTminDecLabel = document.getElementById("FFTminDecLabel");
+const FFTDynRange = document.getElementById("FFTDynRange");
+const FFTDynRangeLabel = document.getElementById("FFTDynRangeLabel");
+const FFTsmooth = document.getElementById("FFTsmooth");
+const PixelSpeed = document.getElementById("PixelSpeed");
+const SampleSoundPlayButton = document.getElementById("SampleSoundPlayButton");
+const NextSampleSoundPlayButton = document.getElementById("NextSampleSoundPlayButton");
+const Spectrogram = document.getElementById("Spectrogram");
+const Stressgram = document.getElementById("Stressgram");
+const RecordButton = document.getElementById("RecordButton");
+const UserSoundPlayButton = document.getElementById("UserSoundPlayButton");
+const FFT2minDec = document.getElementById("FFTminDec");
+const FFT2minDecLabel = document.getElementById("FFT2minDecLabel");
+const FFT2DynRange = document.getElementById("FFT2DynRange");
+const FFT2DynRangeLabel = document.getElementById("FFT2DynRangeLabel");
+const FFT2smooth  = document.getElementById("FFTsmooth");
+const Spectrogram2 = document.getElementById("Spectrogram2");
+const Stressgram2 = document.getElementById("Stressgram2");
+
+/*
+ * Globals
+ */
+const AnAudioContext = new AudioContext();
+const TrailingSec = 0.3;
+let AnAudioSplitter;
+let AnSplittedAudioArray = [];
+let ARecorder;
+let Chunks;
+let SampleSourceNode;
+let InPlay = false;
+
+/*
+ * Internal functions
+ */
+function _setFFTValues() {
+    FFTminDecLabel.innerHTML = FFTminDec.value;
+    FFTDynRangeLabel.innerHTML = FFTDynRange.value;
+    FFT2minDecLabel.innerHTML = FFT2minDec.value;
+    FFT2DynRangeLabel.innerHTML = FFT2DynRange.value;
+}
+function _setSplittedAudioNumber() {
+    SplittedValue.innerHTML = AnSplittedAudioArray.length;
+}
+function _setCutoffFrequency() {
+    FilterCOfLabel.innerHTML = FilterCOf.value;
+}
+
+function _getAudioBuffer(url, func) {
+    let xhr = new XMLHttpRequest();
+    xhr.responseType = 'arraybuffer';
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) {
+            return;
+        }
+        AnAudioContext.decodeAudioData(xhr.response, function (audioBuffer) {
+            func(audioBuffer);
+        });
+    };
+    xhr.open('GET', url, true);
+    xhr.send();
+}
+
+function _readFile2Buffer(url) {
+    _getAudioBuffer(url, function (audioBuffer) {
+        AnAudioSplitter = new AudioSplitter(audioBuffer, 0, TrailingSec);
+        splitAudio(Number(Threshold.value), Number(MinBlank.value), Number(MinSound.value));
+        _setSplittedAudioNumber();
+        SampleSoundPlayButton.disabled = false;
+        NextSampleSoundPlayButton.disabled = false;
+    });
+}
+
+function _successFunc(stream) {
+    ARecorder = new MediaRecorder(stream);
+
+    ARecorder.addEventListener('dataavailable', function(ele) {
+        if (ele.data.size > 0) {
+            Chunks.push(ele.data);
+        }
+    });
+}
+
+
+
+/*
+ * Initialisation processes
+ */
+_setFFTValues();
+_setSplittedAudioNumber();
+_setCutoffFrequency();
+
+navigator.mediaDevices.getUserMedia(
+    {
+        audio: true,
+    })
+    .then (_successFunc)
+    .catch(function (err) {
+        alert(err);
+    }
+);
+
+
+
+/*
+ * Widgets Controls
+ */
+// Sample file input
+AudioFile.addEventListener("change", function(evt) {
+    let url = window.URL.createObjectURL(evt.target.files[0]);
+    _readFile2Buffer(url);
+}, false);
+
+SplitButton.addEventListener("click", function() {
+    splitAudio(Number(Threshold.value), Number(MinBlank.value), Number(MinSound.value));
+    _setSplittedAudioNumber();
+});
+
+SampleSoundPlayButton.addEventListener("click", function(evt) {
+    playPortion();
+});
+
+NextSampleSoundPlayButton.addEventListener("click", function() {
+    let num = Selector.value;   // Get the specfied audio snippet
+    if (num < AnSplittedAudioArray.length - 1) {
+        num++;
+        Selector.value = num;
+        playPortion();
+    }
+});
+
+// Cutoff Frequency
+function cutoffFreqChange(value) {
+    FilterCOfLabel.innerHTML = value;
+}
+
+// FFT range control
+function fftMinDecChange(value) {
+    FFTminDecLabel.innerHTML = value;
+}
+function fftDynRangeChange(value) {
+    FFTDynRangeLabel.innerHTML = value;
+}
+function fft2MinDecChange(value) {
+    FFT2minDecLabel.innerHTML = value;
+}
+function fft2DynRangeChange(value) {
+    FFT2DynRangeLabel.innerHTML = value;
+}
+
+function splitAudio(threshold, minBlank, minSound) {
+    AnSplittedAudioArray = AnAudioSplitter.splitWith(threshold, minBlank, minSound);
+    while(Selector.firstChild) {
+        Selector.removeChild(Selector.lastChild);
+    }
+    for (let i = 0; i < AnSplittedAudioArray.length; i++) {
+        let elem = document.createElement("option");
+        elem.value = i;
+        let textNo = i + 1;
+        let seconds = Math.floor((AnSplittedAudioArray[i][1] - AnSplittedAudioArray[i][0]) * 100 / AnAudioSplitter.sampleRate) / 100;
+        elem.text = textNo + " (" + seconds + ")";
+        Selector.appendChild(elem);
+    }
+}
+
+function _makeLPF(ftype, freq, q) {
+    let lpf = new BiquadFilterNode(AnAudioContext, { frequency: freq, q: q});
+    lpf.ftype = ftype;
+    return lpf;
+}
+
+// Play sample
+function playPortion() {
+    if (InPlay) {
+        InPlay = false;
+        SampleSoundPlayButton.value = "Play Audio Snippet";
+        RecordButton.disabled = false;
+        UserSoundPlayButton.disabled = false;
+        SampleSourceNode.stop();
+        return;
+    }
+    InPlay = true;
+    SampleSoundPlayButton.value = "Stop Playing Audio Snippet";
+    NextSampleSoundPlayButton.disabled = true;
+    RecordButton.disabled = true;
+    UserSoundPlayButton.disabled = true;
+    let num = Selector.value;   // Get the specfied audio snippet
+    let bufp = AnAudioSplitter.getBufferPortion(AnAudioContext, 2, AnSplittedAudioArray[num][0], AnSplittedAudioArray[num][1]);
+    SampleSourceNode = AnAudioContext.createBufferSource();
+    SampleSourceNode.buffer = bufp;
+
+    let splitter = AnAudioContext.createChannelSplitter(2);
+
+    // Create Low Pass Filters
+    let bqf1 = _makeLPF("lowpass", Number(FilterCOf.value), Number(FilterQ.value));
+    let bqf2 = _makeLPF("lowpass", Number(FilterCOf.value), Number(FilterQ.value));
+    let bqf3 = _makeLPF("lowpass", Number(FilterCOf.value), Number(FilterQ.value));
+
+    // Initialise spectrogram
+    let maxDecibel = Number(FFTminDec.value) + Number(FFTDynRange.value);
+    let aVisualiser = new Visualiser(Spectrogram, Stressgram,
+                                    AnAudioContext,
+                                    FFTsize.value, Number(FFTminDec.value), maxDecibel, Number(FFTsmooth.value),
+                                    Number(PixelSpeed.value),
+                                    [{r: 0, g: 0, b: 255}, {r: 255, g: 255, b: 0}]);
+
+    SampleSourceNode.addEventListener("ended", function() {
+        aVisualiser.stopRendering();
+        SampleSoundPlayButton.value = "Play Audio Snippet";
+        InPlay = false;
+        NextSampleSoundPlayButton.disabled = false;
+        RecordButton.disabled = false;
+        UserSoundPlayButton.disabled = false;
+    }.bind(aVisualiser));
+
+    switch (FilterUsage.value) {
+    case "1" :
+        SampleSourceNode.connect(splitter);
+        splitter.connect(AnAudioContext.destination, 0);
+        splitter.connect(bqf1, 1).connect(bqf2).connect(bqf3).connect(aVisualiser.analyser);
+        break;
+    case "2" :
+        SampleSourceNode.connect(bqf1).connect(bqf2).connect(bqf3).connect(splitter);
+console.log("Type:" + bqf1.type + " f:" + bqf1.frequency + " Q:" + bqf1.Q + " det:" + bqf1.detune + "g:" + bqf1.gain);
+        splitter.connect(AnAudioContext.destination, 0);
+        splitter.connect(aVisualiser.analyser, 1);
+        break;
+    default :
+        SampleSourceNode.connect(splitter);
+        splitter.connect(AnAudioContext.destination, 0);
+        splitter.connect(aVisualiser.analyser, 1);
+    }
+
+    aVisualiser.startRendering();
+
+    // Start Playing
+    SampleSourceNode.start();
+}
+
+function recStart() {
+    UserSoundPlayButton.disabled = true;
+    SampleSoundPlayButton.disabled = true;
+    NextSampleSoundPlayButton.disabled = true;
+    RecordButton.value = "Release to Finish Recording";
+    Chunks = [];
+    ARecorder.start();
+}
+
+function recStop() {
+    ARecorder.stop();
+    UserSoundPlayButton.disabled = false;
+    SampleSoundPlayButton.disabled = false;
+    NextSampleSoundPlayButton.disabled = false;
+    RecordButton.value = "Press and Hold to Record";
+}
+
+function playIt() {
+    SampleSoundPlayButton.disabled = true;
+    NextSampleSoundPlayButton.disabled = true;
+    RecordButton.disabled = true;
+    UserSoundPlayButton.disabled = true;
+    let fileReader = new FileReader();
+    fileReader.onloadend = () => {      // 2. Invoked when loadend the Blob (Get the ArrayBuffer)
+        let arrayBuffer = fileReader.result;
+        AnAudioContext.decodeAudioData(arrayBuffer, (audioBuffer) => {        // 3. convert to AudioBuffer
+//
+            let oldBufData = audioBuffer.getChannelData(0);         // 4. Get the Float32 data
+            // 5. Double the channel (preparation for split)
+            let sampleRate = AnAudioContext.sampleRate;
+            let newBuffer = AnAudioContext.createBuffer(2, oldBufData.length + (TrailingSec * sampleRate), sampleRate);
+            for (let ch = 0; ch < 2; ch++) {
+                let newBufData = newBuffer.getChannelData(ch);
+                for (let i = 0; i < newBufData.length; i++) {
+                    newBufData[i] = 0.0;
+                }
+                for (let i = 0; i < oldBufData.length; i++) {
+                    newBufData[i] = oldBufData[i];
+                }
+            }
+//
+            let source = AnAudioContext.createBufferSource();
+            source.buffer = newBuffer;
+            // Graphical process
+            let splitter = AnAudioContext.createChannelSplitter(2);
+            let visualiserSource = AnAudioContext.createBufferSource();
+            let lpf1 = _makeLPF("lowpass", Number(FilterCOf.value), Number(FilterQ.value));
+            let lpf2 = _makeLPF("lowpass", Number(FilterCOf.value), Number(FilterQ.value));
+            let lpf3 = _makeLPF("lowpass", Number(FilterCOf.value), Number(FilterQ.value));
+
+            let maxDecibel = Number(FFT2minDec.value) + Number(FFT2DynRange.value);
+            let s = new Visualiser(Spectrogram2, Stressgram2,
+                                AnAudioContext,
+                                FFTsize.value, Number(FFT2minDec.value), maxDecibel, Number(FFT2smooth.value),
+                                Number(PixelSpeed.value),
+                                [{r: 0, g: 0, b: 255}, {r: 255, g: 255, b: 0}]);
+            source.addEventListener("ended", function() {
+                s.stopRendering();
+                SampleSoundPlayButton.disabled = false;
+                NextSampleSoundPlayButton.disabled = false;
+                RecordButton.disabled = false;
+                UserSoundPlayButton.disabled = false;
+            }.bind(s));
+
+            switch (FilterUsage.value) {
+                case "1" :
+                    source.connect(splitter);
+                    splitter.connect(lpf1,1).connect(lpf2).connect(lpf3).connect(s.analyser);
+                    splitter.connect(AnAudioContext.destination, 0);
+                    break;
+                case "2" :
+                    source.connect(lpf1).connect(lpf2).connect(lpf3).connect(splitter);
+                    splitter.connect(AnAudioContext.destination, 0);
+                    splitter.connect(s.analyser);
+                    break;
+                default :
+                    source.connect(splitter);
+                    splitter.connect(AnAudioContext.destination, 0);
+                    splitter.connect(s.analyser, 1);
+            }
+
+            s.startRendering();
+            source.start();
+        });
+    }
+    fileReader.readAsArrayBuffer(new Blob(Chunks, { 'type' : 'audio/ogg; codecs=opus' }));  // 1. Chunks->Blob
+}
+
+</script>
