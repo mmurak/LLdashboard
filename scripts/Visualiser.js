@@ -69,10 +69,25 @@ class Visualiser {
         const frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
         this.analyser.getByteFrequencyData(frequencyData);
         let sigma = 0;
-        for (let i = 8; i < 18; i++) {          // 8 and 17 are yet another magic numbers I must adjust.
+        let bandLow;
+        let bandHigh;
+        switch(frequencyData.length) {
+            case 8192:
+                bandLow = 25; bandHigh = 61;
+                break;
+            case 4096:
+                bandLow = 10; bandHigh = 41;
+                break;
+            case 2048:
+                bandLow = 5; bandHigh = 21;
+                break;
+            default:
+                bandLow = 0; bandHigh = 11;
+        }
+        for (let i = bandLow; i < bandHigh; i++) {          // 8 and 17 are yet another magic numbers I must adjust.
             sigma += frequencyData[i];
         }
-        let averageLevel = sigma / 10;
+        let averageLevel = sigma / (bandHigh - bandLow);
         let level = this.smoother.getValue(averageLevel * this.magFactor);
         this.stressCanvasCtx.fillStyle = "rgb(65,105,225)";
         this.stressCanvasCtx.fillRect(this.renderingPoint, this.stressCanvas.height - level, this.tp, level - 1);

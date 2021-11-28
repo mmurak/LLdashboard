@@ -1,38 +1,64 @@
-<input type="file" id="AudioFile" onclick="this.value=null;" accept=".mp3,.mp4"/></input>
-<br/>
-<label>Splitter threshold: <input type="text" id="Threshold" value="0.011" size="6"></label>
-<label>Min blank (sec.): <input type="text" id="MinBlank" value="0.2" size="5"></label>
-<label>Min sound (sec.): <input type="text" id="MinSound" value="0.2" size="5"></label>
-<input type="button" id="SplitButton" value="Split">
-<label id="SplittedValue"></label>
-<select id="Selector" name="selector"></select>
-<input type="button" id="SampleSoundPlayButton" value="Play Audio Snippet" disabled="true">
-<input type="button" id="NextSampleSoundPlayButton" value="Play Next Clip" disabled="true">
-<br/>
-Low Pass Filter: 
-<label><select id="FilterUsage"><option value="0">none</option><option value="1" selected>Visualiser only</option><option value="2">both</option></select></label>
-<label>Cutoff frequency: <label id="FilterCOfLabel"></label></label><label>Hz</label><input type="range" id="FilterCOf" min="100" max="5000" value="200" oninput="cutoffFreqChange(this.value);"></label>
-<label>Q: <input type="text" id="FilterQ" value="50" size="5"></label>
-<br/>
-<label>FFT-range: <select id="FFTsize"><option value="512">〜15,000Hz+</option><option value="1024">〜8,000Hz</option><option value="2048">〜4,000Hz</option><option value="4096">〜2,000Hz</option><option value="8192">〜1,000Hz</option><option value="16384" selected>〜500Hz</option></select></label>
-<label>Minimum level: <label id="FFTminDecLabel"></label><label>dB</label><input type="range" id="FFTminDec" min="-150" max="-1" value="-90" oninput="fftMinDecChange(this.value);"></label>
-<label>Dynamic Range: <label id="FFTDynRangeLabel"></label></label><label>dB</label><input type="range" id="FFTDynRange" min="1" max="150" value="60" oninput="fftDynRangeChange(this.value);"></label>
-<label>Smoothing Time Const.: <input type="textfield" id="FFTsmooth" value="0.8" size="5"></label>
-<br/>
-<label>Pixels/Process<select id="PixelSpeed"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></label>
-<br/>
-<canvas id="Spectrogram" width="800" height="200"></canvas>
-<canvas id="Stressgram" width="800" height="100"></canvas>
-<hr>
-<input type="button" id="RecordButton" value="Press and Hold to Record" onMousedown="recStart();" onMouseup="recStop();">
-<input type="button" id="UserSoundPlayButton" value="Play Recorded Sound" onClick="playIt();" disabled="true">
-<br/>
-<label>Minimum dB: <label id="FFT2minDecLabel"></label><input type="range" id="FFT2minDec" min="-150" max="-1" value="-90" oninput="fft2MinDecChange(this.value);"></label>
-<label>Dynamic Range (dB): <label id="FFT2DynRangeLabel"></label><input type="range" id="FFT2DynRange" min="1" max="150" value="60" oninput="fft2DynRangeChange(this.value);"></label>
-<label>Smoothing Time Const.: <input type="textfield" id="FFT2smooth" value="0.8" size="5"></label>
-<br/>
-<canvas id="Spectrogram2" width="800" height="200"></canvas>
-<canvas id="Stressgram2" width="800" height="100"></canvas>
+<html>
+  <head>
+    <title>LLdashboard（Ver. 0.8）</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" >
+    <link rel="shortcut icon" href="kiwi-bird.png">
+    <link rel="stylesheet" href="./scripts/LLdashboard.css">
+  </head>
+  <body style="user-select: none;">
+    <div class="tooltip">
+    <input type="file" id="AudioFile" onclick="this.value=null;" accept=".mp3,.mp4"/></input>
+    <div class="tooltiptext">モデル音源ファイルを指定します。<br/>データはメモリに展開するため、あまり大きな（再生時間の長い）ファイルは指定しないようにしてください。</div>
+    </div>
+    <br/>
+    <div class="tooltip">
+    <label>Splitter：</label>
+    <div class="tooltiptext">有音部を抽出するためのパラメータです。<br/>・threshold: 無音と有音を区別する信号のしきい値（0.0〜1.0）<br/>・Min blank: 切れ目と認識する最少無音時間（秒単位）<br/>・Min sound: 有音と認識する最少有音時間（秒単位）</div>
+    </div>
+    <label> threshold: <input type="text" id="Threshold" value="0.011" size="6"></input></label>
+    <label>Min blank (sec.): <input type="text" id="MinBlank" value="0.2" size="5"></label>
+    <label>Min sound (sec.): <input type="text" id="MinSound" value="0.2" size="5"></input></label>
+    <input type="button" id="SplitButton" value="Split"></input>
+    <label id="SplittedValue"></label>
+    <select id="Selector" name="selector"></select>
+    <input type="button" id="SampleSoundPlayButton" value="Play Audio Snippet" disabled="true"></input>
+    <input type="button" id="NextSampleSoundPlayButton" value="Play Next Clip" disabled="true"></input>
+    <br/>
+    <div class="tooltip">
+    Low Pass Filter: 
+    <div class="tooltiptext">イントネーションを見やすくするためにCutoff frequencyを超える音域を除去します（QはQuality factor）。<br/>・none: 音声、画像ともフィルタを通さない<br/>・Visualiser only: 画像のみフィルタを通す<br/>・both: 音声、画像ともフィルタを通す</div>
+    </div>
+    <label><select id="FilterUsage"><option value="0">none</option><option value="1" selected>Visualiser only</option><option value="2">both</option></select></label>
+    <label>Cutoff frequency: <label id="FilterCOfLabel"></label></label><label>Hz</label><input type="range" id="FilterCOf" min="100" max="5000" value="200" oninput="cutoffFreqChange(this.value);"></label>
+    <label>Q: <input type="text" id="FilterQ" value="50" size="5"></label>
+    <br/>
+    <div class="tooltip">
+    <label>FFT:</label>
+    <div class="tooltiptext">縦軸を周波数、横軸を時間軸で表示します。<br/>音圧は256段階で黒〜青〜黄〜白へと遷移し、黒から色づき始める音圧をMinimum levelで、取り扱う音圧の幅をDynamic Rangeで指定します（上限を超える音圧は白で、下限を下回る音圧は黒で表示されます）。</div>
+    </div>
+    </label> Range: <select id="FFTsize"><option value="512">〜15,000Hz+</option><option value="1024">〜8,000Hz</option><option value="2048">〜4,000Hz</option><option value="4096" selected>〜2,000Hz</option><option value="8192">〜1,000Hz</option><option value="16384">〜500Hz</option></select></label>
+    <label>Minimum level: <label id="FFTminDecLabel"></label><label>dB</label><input type="range" id="FFTminDec" min="-150" max="-1" value="-90" oninput="fftMinDecChange(this.value);"></label>
+    <label>Dynamic Range: <label id="FFTDynRangeLabel"></label></label><label>dB</label><input type="range" id="FFTDynRange" min="1" max="150" value="60" oninput="fftDynRangeChange(this.value);"></label>
+    <label>Smoothing Time Const.: <input type="textfield" id="FFTsmooth" value="0.8" size="5"></label>
+    <br/>
+    <div class="tooltip">
+    <label>Pixels/Process</label>
+    <div class="tooltiptext">単位時間あたりの横スクロールピクセル数です。</div>
+    </div>
+    <label><select id="PixelSpeed"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select></label>
+    <br/>
+    <canvas id="Spectrogram" width="800" height="200"></canvas>
+    <canvas id="Stressgram" width="800" height="100"></canvas>
+    <hr>
+    <input type="button" id="RecordButton" value="Press and Hold to Record" onMousedown="recStart();" onMouseup="recStop();">
+    <input type="button" id="UserSoundPlayButton" value="Play Recorded Sound" onClick="playIt();" disabled="true">
+    <br/>
+    <label>Minimum dB: <label id="FFT2minDecLabel"></label><input type="range" id="FFT2minDec" min="-150" max="-1" value="-90" oninput="fft2MinDecChange(this.value);"></label>
+    <label>Dynamic Range (dB): <label id="FFT2DynRangeLabel"></label><input type="range" id="FFT2DynRange" min="1" max="150" value="60" oninput="fft2DynRangeChange(this.value);"></label>
+    <label>Smoothing Time Const.: <input type="textfield" id="FFT2smooth" value="0.8" size="5"></label>
+    <br/>
+    <canvas id="Spectrogram2" width="800" height="200"></canvas>
+    <canvas id="Stressgram2" width="800" height="100"></canvas>
 
 <script src="./scripts/AudioSplitter.js"></script>
 <script src="./scripts/Smoother.js"></script>
@@ -382,3 +408,5 @@ function playIt() {
 }
 
 </script>
+</body>
+</html>
