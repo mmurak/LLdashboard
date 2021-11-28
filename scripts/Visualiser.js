@@ -19,7 +19,7 @@ class Visualiser {
         this.stressCanvas = stressCanvas;
         this.stressCanvasCtx = stressCanvas.getContext("2d");
         this.magFactor = this.stressCanvas.height / 256.0;
-        this.smoother = new Smoother(3);
+        this.smoother = new Smoother(2);
         this.tp = speed;
     }
     _generateColorMap(darkLight) {
