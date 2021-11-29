@@ -50,7 +50,8 @@
     <canvas id="Spectrogram" width="800" height="200"></canvas>
     <canvas id="Stressgram" width="800" height="100"></canvas>
     <hr>
-    <input type="button" id="RecordButton" value="Press and Hold to Record" onMousedown="recStart();" onMouseup="recStop();">
+    <canvas id="Indicator" width="40" height="20"></canvas>
+    <input type="button" id="RecordButton" value="Record" onClick="recButton();">
     <input type="button" id="UserSoundPlayButton" value="Play Recorded Sound" onClick="playIt();" disabled="true">
     <br/>
     <label>Minimum dB: <label id="FFT2minDecLabel"></label><input type="range" id="FFT2minDec" min="-150" max="-1" value="-90" oninput="fft2MinDecChange(this.value);"></label>
@@ -90,6 +91,7 @@ const SampleSoundPlayButton = document.getElementById("SampleSoundPlayButton");
 const NextSampleSoundPlayButton = document.getElementById("NextSampleSoundPlayButton");
 const Spectrogram = document.getElementById("Spectrogram");
 const Stressgram = document.getElementById("Stressgram");
+const Indicator = document.getElementById("Indicator");
 const RecordButton = document.getElementById("RecordButton");
 const UserSoundPlayButton = document.getElementById("UserSoundPlayButton");
 const FFT2minDec = document.getElementById("FFTminDec");
@@ -111,6 +113,8 @@ let ARecorder;
 let Chunks;
 let SampleSourceNode;
 let InPlay = false;
+let InRec = false;
+let IndicatorCtx = Indicator.getContext("2d");
 
 /*
  * Internal functions
@@ -163,6 +167,15 @@ function _successFunc(stream) {
     });
 }
 
+function _setIndicator(value) {
+    if (value == 0) {
+        IndicatorCtx.fillStyle ="#87ceeb";
+    } else {
+        IndicatorCtx.fillStyle = "rgb(255, 0, 0)";
+    }
+    IndicatorCtx.fillRect(0, 0, Indicator.width, Indicator.height);
+}
+
 
 
 /*
@@ -171,6 +184,7 @@ function _successFunc(stream) {
 _setFFTValues();
 _setSplittedAudioNumber();
 _setCutoffFrequency();
+_setIndicator(0);
 
 navigator.mediaDevices.getUserMedia(
     {
@@ -323,7 +337,6 @@ function recStart() {
     UserSoundPlayButton.disabled = true;
     SampleSoundPlayButton.disabled = true;
     NextSampleSoundPlayButton.disabled = true;
-    RecordButton.value = "Release to Finish Recording";
     Chunks = [];
     ARecorder.start();
 }
@@ -333,7 +346,20 @@ function recStop() {
     UserSoundPlayButton.disabled = false;
     SampleSoundPlayButton.disabled = false;
     NextSampleSoundPlayButton.disabled = false;
-    RecordButton.value = "Press and Hold to Record";
+}
+
+function recButton() {
+    if (InRec) {
+        InRec = false;
+        _setIndicator(0);
+        RecordButton.value = "Record";
+        recStop();
+    } else {
+        InRec = true;
+        _setIndicator(1);
+        RecordButton.value = "Push to Stop";
+        recStart();
+    }
 }
 
 function playIt() {
