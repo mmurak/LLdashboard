@@ -5,7 +5,8 @@ class Visualiser {
             minDec = -120, maxDec = -30,
             smoothingTimeConstant = 0,
             speed = 2,
-            colorMap = [{r: 0, g: 0, b: 255}, {r: 255, g: 255, b: 0}]) {
+            minFreq = 100, maxFreq = 300,
+            colorMap = [{r: 0, g: 0, b: 255}, {r: 255, g: 255, b: 0}],) {
         this.spectrumCanvas = spectrumCanvas;
         this.spectrumCanvasCtx = spectrumCanvas.getContext("2d");
         this.analyser = audioContext.createAnalyser();
@@ -19,8 +20,13 @@ class Visualiser {
         this.stressCanvas = stressCanvas;
         this.stressCanvasCtx = stressCanvas.getContext("2d");
         this.magFactor = this.stressCanvas.height / 256.0;
-        this.smoother = new Smoother(2);
+        this.smoother = new Smoother(3);
         this.tp = speed;
+        this.minFreq = minFreq;
+        this.maxFreq = maxFreq;
+        this.fRangePerDot = audioContext.sampleRate / fftSize;
+        this.lowestBoundary = Math.floor(minFreq / this.fRangePerDot);
+        this.highestBoundary = Math.ceil(maxFreq / this.fRangePerDot);
     }
     _generateColorMap(darkLight) {
         let dark = darkLight[0];
@@ -69,25 +75,10 @@ class Visualiser {
         const frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
         this.analyser.getByteFrequencyData(frequencyData);
         let sigma = 0;
-        let bandLow;
-        let bandHigh;
-        switch(frequencyData.length) {
-            case 8192:
-                bandLow = 25; bandHigh = 61;
-                break;
-            case 4096:
-                bandLow = 10; bandHigh = 41;
-                break;
-            case 2048:
-                bandLow = 5; bandHigh = 21;
-                break;
-            default:
-                bandLow = 0; bandHigh = 11;
-        }
-        for (let i = bandLow; i < bandHigh; i++) {          // 8 and 17 are yet another magic numbers I must adjust.
+        for (let i = this.lowestBoundary; i < this.highestBoundary; i++) {
             sigma += frequencyData[i];
         }
-        let averageLevel = sigma / (bandHigh - bandLow);
+        let averageLevel = sigma / (this.highestBoundary - this.lowestBoundary);
         let level = this.smoother.getValue(averageLevel * this.magFactor);
         this.stressCanvasCtx.fillStyle = "rgb(65,105,225)";
         this.stressCanvasCtx.fillRect(this.renderingPoint, this.stressCanvas.height - level, this.tp, level - 1);
