@@ -7,7 +7,7 @@
   </head>
   <body style="user-select: none;">
     <div class="tooltip">
-    <input type="file" id="AudioFile" onclick="this.value=null;" accept=".mp3,.mp4"/></input>
+    <input type="file" id="AudioFile" onclick="this.value=null;" accept=".mp3,.mp4,.ogg"/></input>
     <div class="tooltiptext">モデル音源ファイルを指定します。<br/>データはメモリに展開するため、あまり大きな（再生時間の長い）ファイルは指定しないようにしてください。</div>
     </div>
     <br/>
@@ -60,7 +60,8 @@
     <hr>
     <canvas id="Indicator" width="40" height="20"></canvas>
     <input type="button" id="RecordButton" value="Record" onClick="recButton();">
-    <input type="button" id="UserSoundPlayButton" value="Play Recorded Sound" onClick="playIt();" disabled="true">
+    <input type="button" id="UserSoundPlayButton" value="Play Recorded Sound" onClick="playIt();" disabled="true"> | 
+    <input type="button" id="SaveButton" value="Save" onClick="saveSound();" disabled="true">
     <br/>
     <label>Minimum dB: <label id="FFT2minDecLabel"></label><input type="range" id="FFT2minDec" min="-150" max="-1" value="-90" oninput="fft2MinDecChange(this.value);"></label>
     <label>Dynamic Range (dB): <label id="FFT2DynRangeLabel"></label><input type="range" id="FFT2DynRange" min="1" max="150" value="60" oninput="fft2DynRangeChange(this.value);"></label>
@@ -76,6 +77,7 @@
 <script src="./scripts/AudioSplitter.js"></script>
 <script src="./scripts/Smoother.js"></script>
 <script src="./scripts/Visualiser.js"></script>
+<script src='./scripts/lame.all.js'></script>
 
 <script>
 /*
@@ -110,6 +112,7 @@ const Stressgram = document.getElementById("Stressgram");
 const Indicator = document.getElementById("Indicator");
 const RecordButton = document.getElementById("RecordButton");
 const UserSoundPlayButton = document.getElementById("UserSoundPlayButton");
+const SaveButton = document.getElementById("SaveButton");
 const FFT2minDec = document.getElementById("FFTminDec");
 const FFT2minDecLabel = document.getElementById("FFT2minDecLabel");
 const FFT2DynRange = document.getElementById("FFT2DynRange");
@@ -420,11 +423,13 @@ function recButton() {
         InRec = false;
         _setIndicator(0);
         RecordButton.value = "Record";
+        SaveButton.disabled = false;
         recStop();
     } else {
         InRec = true;
         _setIndicator(1);
         RecordButton.value = "Push to Stop";
+        SaveButton.disabled = true;
         recStart();
     }
 }
@@ -433,6 +438,7 @@ function playIt() {
     SampleSoundPlayButton.disabled = true;
     NextSampleSoundPlayButton.disabled = true;
     RecordButton.disabled = true;
+    SaveButton.disabled = true;
     UserSoundPlayButton.disabled = true;
     let fileReader = new FileReader();
     fileReader.onloadend = () => {      // 2. Invoked when loadend the Blob (Get the ArrayBuffer)
@@ -475,6 +481,7 @@ function playIt() {
                 NextSampleSoundPlayButton.disabled = false;
                 RecordButton.disabled = false;
                 UserSoundPlayButton.disabled = false;
+                SaveButton.disabled = false;
             }.bind(s));
 
             switch (FilterUsage.value) {
@@ -499,6 +506,53 @@ function playIt() {
         });
     }
     fileReader.readAsArrayBuffer(new Blob(Chunks, { 'type' : 'audio/ogg; codecs=opus' }));  // 1. Chunks->Blob
+}
+
+function saveSound() {
+    let url = window.URL.createObjectURL(new Blob(Chunks, { 'type' : 'audio/ogg; codecs=opus' }));
+/*
+    let link = document.createElement("a");
+    link.href = url;
+    link.download = "output.webm";
+    link.click();
+*/
+    _saveBuffer(url);
+}
+
+function _convertFl32toInt16(buff) {
+    let val = new Int16Array(buff.length);
+    for (let i = 0; i < buff.length; i++) {
+        val[i] = Math.floor(buff[i] * 32768);
+    }
+    return val;
+}
+
+function _saveBuffer(url) {
+    _getAudioBuffer(url, function (audioBuffer) {
+        let buff32 = new Float32Array(audioBuffer.length);
+        buff32.set(audioBuffer.getChannelData(0));
+        mp3encoder = new lamejs.Mp3Encoder(1, AudioContext.sampleRate, 128);
+        let mp3Data = [];
+        let samples = _convertFl32toInt16(buff32);
+        let sampleBlockSize = 1152;
+        for (let i = 0; i < samples.length; i += sampleBlockSize) {
+            let sampleChunk = samples.subarray(i, i + sampleBlockSize);
+            let mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+            if (mp3buf.length > 0) {
+                mp3Data.push(mp3buf)
+            }
+        }
+        let mp3buf = mp3encoder.flush();
+        if (mp3buf.length > 0) {
+            mp3Data.push(new Int8Array(mp3buf));
+        }
+        let blob = new Blob(mp3Data, {type: 'audio/mp3'});
+        let url = window.URL.createObjectURL(blob);
+        let link = document.createElement("a");
+        link.href = url;
+        link.download = "output.mp3";
+        link.click();
+    });
 }
 
 </script>
