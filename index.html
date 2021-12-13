@@ -16,7 +16,7 @@
     <div class="tooltiptext">有音部を抽出するためのパラメータです。<br/>・threshold: 無音と有音を区別する信号のしきい値（0.0〜1.0）<br/>・Min blank: 切れ目と認識する最少無音時間（秒単位）<br/>・Min sound: 有音と認識する最少有音時間（秒単位）</div>
     </div>
     <label> threshold: <input type="text" id="Threshold" value="0.011" size="6"></input></label>
-    <label>Min blank (sec.): <input type="text" id="MinBlank" value="0.2" size="5"></label>
+    <label>Min blank (sec.): <input type="text" id="MinBlank" value="0.8" size="5"></label>
     <label>Min sound (sec.): <input type="text" id="MinSound" value="0.2" size="5"></input></label>
     <input type="button" id="SplitButton" value="Split"></input>
     <label id="SplittedValue"></label>
@@ -36,7 +36,7 @@
     <label>Spectrogram:</label>
     <div class="tooltiptext">縦軸を周波数、横軸を時間軸で表示します。<br/>音圧は256段階で黒〜青〜黄〜白へと遷移し、黒から色づき始める音圧をMinimum levelで、取り扱う音圧の幅をDynamic Rangeで指定します（上限を超える音圧は白で、下限を下回る音圧は黒で表示されます）。</div>
     </div>
-    </label> Range: <select id="FFTsize"><option value="512">〜15,000Hz+</option><option value="1024">〜8,000Hz</option><option value="2048">〜4,000Hz</option><option value="4096" selected>〜2,000Hz</option><option value="8192">〜1,000Hz</option><option value="16384">〜500Hz</option></select></label>
+    </label> Range: <select id="FFTsize"><option value="512">〜15,000Hz+</option><option value="1024">〜8,000Hz</option><option value="2048">〜4,000Hz</option><option value="4096">〜2,000Hz</option><option value="8192">〜1,000Hz</option><option value="16384" selected>〜500Hz</option></select></label>
     <label>Min. level: <label id="FFTminDecLabel"></label><label>dB</label><input type="range" id="FFTminDec" min="-150" max="-1" value="-90" oninput="fftMinDecChange(this.value);"></label>
     <label>Dynamic Range: <label id="FFTDynRangeLabel"></label></label><label>dB</label><input type="range" id="FFTDynRange" min="1" max="150" value="60" oninput="fftDynRangeChange(this.value);"></label>
     <label>Smoothing TC: <input type="textfield" id="FFTsmooth" value="0.8" size="5"></label>
